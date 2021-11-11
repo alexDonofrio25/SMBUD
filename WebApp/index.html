@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>TrackU</title>
+    <meta charset="UTF-8">
+    <link href="./style.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <div class="container">
+      <div class="title-container">
+        <h1 class="title">TRACKU APP</h1>
+        <h4 class="title">Provided by Neo4j</h4>
+      </div>
+      <div class="wrap-queries">
+        <div class="input-queries">
+          <div>
+            <form>
+              Enter the name or the fiscal code of a person to discover all possible contacts in 5 days:
+              <div class="wrap-input">
+                <input id="input1"></input>
+                <button type="submit">FIND</button>
+              </div>
+            </form>
+          </div>
+          <div>
+            <form>
+              Enter the name or the fiscal code of a person to discover all his family contacts:
+              <div class="wrap-input">
+                <input id="input2"></input>
+                <button type="submit">FIND</button>
+              </div>
+            </form>
+          </div>
+          <div>
+            <form>
+              Enter the name or the fiscal code of a person to discover all the contacts provides by a tracking app in 5 days:
+              <div class="wrap-input">
+                <input id="input3"></input>
+                <button type="submit">FIND</button>
+              </div>
+            </form>
+          </div>
+          <div>
+            <form>
+              Enter the name or the fiscal code of a person to discover all places visited in the last 5 days:
+              <div class="wrap-input">
+                <input id="input4"></input>
+                <button type="submit">FIND</button>
+              </div>
+            </form>
+          </div>
+          <div>
+            <form>
+              Enter the name or the fiscal code of a person to discover all possible contacts in places visited in the last 5 days:
+              <div class="wrap-input">
+                <input id="input5"></input>
+                <button type="submit">FIND</button>
+              </div>
+            </form>
+          </div>
+          <div>
+            <form>
+              Find all visitor to a given place and time:
+              <div class="wrap-input">
+                <input id="input6"></input>
+                <button type="submit">FIND</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="output-queries">
+          Here goes the query's output
+        </div>
+      </div>
+      <div class="data-container">
+        <div class="clusters">
+          <h1>ALL TRACKED CLUSTERS</h1>
+          <h2>A cluster is a place visited by more than 10 infected people</h2>
+        </div>
+        <div class="vaccine-graph">
+          <h1>VACCINATION TRACKER</h1>
+        </div>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+    const neo4j = require('neo4j-driver');
+
+    const driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
+    const session = driver.session();
+
+    function allContacts() {
+      const string = document.getElementById('input1').value;
+
+      try {
+        const result = await session.run(
+          'MATCH (person:Person)-[:isInTheFamily]->(family_contact:Person)
+          WHERE person.fiscalCode = $input
+          RETURN family_contact AS result
+          UNION
+          MATCH (person:Person)-[app:isInContact]->(app_contact:Person)
+          WHERE person.idPerson = “…” AND (app.appContactDate IS NULL OR localdatetime() + duration.inSeconds(app.appContactDate, localdatetime()) <= localdatetime() + duration({days:5}))
+          RETURN app_contact AS result
+          UNION
+          MATCH (person:Person)-[a:visit]->(place:Place)<-[b:visit]-(place_contact:Person)
+          WHERE localdatetime() + duration.inSeconds(a.startTime, localdatetime()) <= localdatetime() + duration({days: 5})
+          WITH place_contact, CASE WHEN a.startTime >= b.startTime THEN a.startTime ELSE b.startTime END AS max_start, CASE WHEN a.endTime <= b.endTime THEN a.endTime ELSE b.endTime END AS min_end
+          WHERE person.idPerson  = “…” AND max_start <= min_end AND localdatetime() + duration.inSeconds(max_start, min_end) >= localdatetime() + duration({minutes: 15})
+          RETURN DISTINCT place_contact as result
+          ',
+          { input: string }
+        )
+
+        const records = result.records[0]
+
+        console.log(node.properties.name)
+      } finally {
+        await session.close()
+      }
+    }
+    </script>
+
+  </body>
+</html>
